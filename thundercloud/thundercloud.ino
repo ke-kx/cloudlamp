@@ -318,27 +318,22 @@ void thunderburst(){
   
 }
 
-// basically just a debug mode to show off the lightning in all its glory, no sound reactivity. 
-void constant_lightning(){
-  switch(random(1,10)){
-   case 1:
-        thunderburst();
-        delay(random(10,500));
-         Serial.println("Thunderburst");
-        break;
-       
-      case 2:
-        rolling();
-        Serial.println("Rolling");
-        break;
-        
-      case 3:
-        crack();
-        delay(random(50,250));
-        Serial.println("Crack");
-        break;
-        
-    
-  }  
+// basically just a debug mode to show off the lightning in all its glory, no sound reactivity.
+void constant_lightning() {
+    switch(random(1,3)) {
+        case 1:
+            thunderburst();
+            delay(random(10,500));
+            Serial.println("Thunderburst");
+            break;
+        case 2:
+            rolling();
+            Serial.println("Rolling");
+            break;
+        case 3:
+            crack();
+            delay(random(50,250));
+            Serial.println("Crack");
+            break;
+    }
 }
-  
