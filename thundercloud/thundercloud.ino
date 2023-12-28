@@ -10,7 +10,7 @@ This paragraph must be included in any redistribution.
 #include "FastLED.h"
 
 // How many leds in your strip?
-#define NUM_LEDS 0
+#define NUM_LEDS 150
 #define DATA_PIN 7
 
 
@@ -22,7 +22,7 @@ Mode lastMode = CLOUD;
 
 // Mic settings, shouldn't need to adjust these. 
 #define MIC_PIN   0  // Microphone is attached to this analog pin
-#define DC_OFFSET  0  // DC offset in mic signal - if unusure, leave 0
+#define DC_OFFSET  370  // DC offset in mic signal - if unusure, leave 0
 #define NOISE     10  // Noise/hum/interference in mic signal
 #define SAMPLES   10  // Length of buffer for dynamic level adjustment
 byte volCount  = 0;      // Frame counter for storing past volume data
@@ -119,7 +119,7 @@ void colour_fade(){
   else if(fade_h < 0){
     fade_direction = 1;
   }
-    
+
   fade_h += fade_direction;
   FastLED.show();
   delay(100);
@@ -128,70 +128,63 @@ void colour_fade(){
 
 
 void detect_thunder() {
-  n   = analogRead(MIC_PIN);                        // Raw reading from mic 
-  n   = abs(n - 512 - DC_OFFSET); // Center on zero
-  n   = (n <= NOISE) ? 0 : (n - NOISE);             // Remove noise/hum
-  vol[volCount] = n;                      // Save sample for dynamic leveling
-  if(++volCount >= SAMPLES) volCount = 0; // Advance/rollover sample counter
+    n = analogRead(MIC_PIN);                        // Raw reading from mic 
+    n = abs(n - 512 - DC_OFFSET); // Center on zero
+    n = (n <= NOISE) ? 0 : (n - NOISE);             // Remove noise/hum
+    vol[volCount] = n;                      // Save sample for dynamic leveling
+    if (++volCount >= SAMPLES) volCount = 0; // Advance/rollover sample counter
 
-  total = 0;
-  for(int i=0; i<SAMPLES; i++) {
-    total += vol[i];
-  }
-
-  // If you're having trouble getting the cloud to trigger, uncomment this block to output a ton of debug on current averages. 
-  // Note that this WILL slow down the program and make it less sensitive due to lower sample rate.
-  for(int t=0; t<SAMPLES; t++) {
-    //initial data is zero. to avoid initial burst, we ignore zero and just add the current l
-    Serial.print("Sample item ");
-    Serial.print(t);
-    Serial.print(":");
-    Serial.println(vol[t]);
-  }
-
-  Serial.print("total");
-  Serial.println(total);
-  Serial.print("divided by sample size of ");
-  Serial.println(SAMPLES);
-
-  Serial.print("average:");
-  Serial.println(average);
-
-  Serial.print("current:");
-  Serial.println(n);
-
-  average = (total/SAMPLES)+2;
-  if(n>average){
-    Serial.println("TRIGGERED");
-    reset();
-
-    //I've programmed 3 types of lightning. Each cycle, we pick a random one. 
-    switch(random(1,3)){
-       //switch(3){
-  
-      case 1:
-        thunderburst();
-        delay(random(10,500));
-         Serial.println("Thunderburst");
-        break;
-       
-      case 2:
-        rolling();
-        Serial.println("Rolling");
-        break;
-        
-      case 3:
-        crack();
-        delay(random(50,250));
-        Serial.println("Crack");
-        break;
-        
-      
+    total = 0;
+    for(int i=0; i<SAMPLES; i++) {
+        total += vol[i];
     }
-  }
+
+    // If you're having trouble getting the cloud to trigger, uncomment this block to output a ton of debug on current averages. 
+    // Note that this WILL slow down the program and make it less sensitive due to lower sample rate.
+    Serial.print("Samples: [");
+    for(int t=0; t<SAMPLES; t++) {
+        //initial data is zero. to avoid initial burst, we ignore zero and just add the current l
+        Serial.print(vol[t]);
+        Serial.print(", ");
+    }
+    Serial.println("]");
+
+    Serial.print("total");
+    Serial.println(total);
+    Serial.print("divided by sample size of ");
+    Serial.println(SAMPLES);
+
+    Serial.print("average:");
+    Serial.println(average);
+
+    Serial.print("current:");
+    Serial.println(n);
+
+    average = (total/SAMPLES)+2;
+    if (n>average) {
+        Serial.println("TRIGGERED");
+        reset();
+
+        //I've programmed 3 types of lightning. Each cycle, we pick a random one. 
+        switch(random(1,3)) {
+            case 1:
+                thunderburst();
+                delay(random(10,500));
+                Serial.println("Thunderburst");
+                break;
+            case 2:
+                rolling();
+                Serial.println("Rolling");
+                break;
+          case 3:
+              crack();
+              delay(random(50,250));
+              Serial.println("Crack");
+              break;
+        }
+    }
 }
- 
- 
+
 // utility function to turn all the lights off.  
 void reset(){
   for (int i=0;i<NUM_LEDS;i++){
@@ -207,17 +200,13 @@ void acid_cloud(){
     for(int i=0;i<NUM_LEDS;i++){
       if(random(0,100)>90){
         leds[i] = CHSV( random(0,255), 255, 255); 
-
-      }
-      else{
+      } else {
         leds[i] = CHSV(0,0,0);
       }
     }
     FastLED.show();
     delay(random(5,100));
     reset();
-    
-  //}
 }
 
 void rolling(){
@@ -238,7 +227,6 @@ void rolling(){
     FastLED.show();
     delay(random(5,100));
     reset();
-    
   }
 }
 
