@@ -4,7 +4,7 @@ View the full tutorial and build guide at http://www.makeuseof.com/
 
 Sound sampling code originally by Adafruit Industries.  Distributed under the BSD license.
 This paragraph must be included in any redistribution.
-*/
+ */
 
 #include <Wire.h>
 #include "FastLED.h"
@@ -16,13 +16,14 @@ This paragraph must be included in any redistribution.
 
 // Mode enumeration - if you want to add additional party or colour modes, add them here; you'll need to map some IR codes to them later; 
 // and add the modes into the main switch loop
-enum Mode { CLOUD,ACID,OFF,ON,RED,GREEN,BLUE,FADE};
-Mode mode = CLOUD;
-Mode lastMode = CLOUD;
+enum Mode { CLOUD,ACID,OFF,ON,RED,GREEN,BLUE,FADE, DELAY};
+Mode mode = DELAY;
+Mode lastMode = DELAY;
 
 // Mic settings, shouldn't need to adjust these. 
-#define MIC_PIN   0  // Microphone is attached to this analog pin
-#define DC_OFFSET  370  // DC offset in mic signal - if unusure, leave 0
+#define MIC_PIN   A3  // Microphone is attached to this analog pin
+#define MIC_PIN_DIG 8
+#define DC_OFFSET  0  // DC offset in mic signal - if unusure, leave 0
 #define NOISE     10  // Noise/hum/interference in mic signal
 #define SAMPLES   10  // Length of buffer for dynamic level adjustment
 byte volCount  = 0;      // Frame counter for storing past volume data
@@ -39,6 +40,7 @@ int fade_direction = 1;
 CRGB leds[NUM_LEDS];
 
 char input;
+int counter, delay_counter;
 
 void setup() { 
     // this line sets the LED strip type - refer fastLED documeantion for more details https://github.com/FastLED/FastLED
@@ -48,6 +50,8 @@ void setup() {
     Serial.begin(115200);
 
     Serial.begin(9600);
+    pinMode(MIC_PIN, INPUT);
+    pinMode(MIC_PIN_DIG, INPUT);
     delay(2000);
     Serial.println("Type something!");
 }
@@ -70,10 +74,24 @@ void setMode(char received) {
           mode = GREEN; break;
         case 'r':
           mode = RED; break;
+        case 'd':
+          mode = DELAY; break;
     }
 }
 
-void loop() { 
+void debugMic() {
+    int analog = analogRead(MIC_PIN);
+    int digital = digitalRead(MIC_PIN_DIG);
+    Serial.print(analog);
+    Serial.print(", ");
+    Serial.println(300 + 100 * digital);
+    delay(50);
+}
+
+
+void loop() {
+    // debugMic();
+
     if(Serial.available()){
         input = Serial.read();
         Serial.print("You typed: " );
@@ -87,11 +105,32 @@ void loop() {
         case ACID: acid_cloud(); reset(); break;
         case OFF:reset(); break;
         case ON: constant_lightning(); reset(); break;
-        case RED: single_colour(0); break;
+        case RED: single_colour(1); break;
         case BLUE: single_colour(160); break;
         case GREEN: single_colour(96); break;
         case FADE: colour_fade(); break;
-        default: detect_thunder(); reset(); break;
+        case DELAY: delayed_on(); break;
+        default: delayed_on(); reset(); break;
+    }
+}
+
+void delayed_on() {
+    counter++;
+    delay(50);
+
+    if (counter > delay_counter) {
+        int iterations = random(1, 10);
+        Serial.print("Iterations: ");
+        Serial.println(iterations);
+        for (int i = 0; i <= iterations; i++) {
+            constant_lightning();
+            delay(50);
+        }
+
+        counter = 0;
+        delay_counter = random(10, 150);
+        Serial.print("Delay Counter: ");
+        Serial.println(delay_counter);
     }
 }
 
@@ -129,6 +168,8 @@ void colour_fade(){
 
 void detect_thunder() {
     n = analogRead(MIC_PIN);                        // Raw reading from mic 
+    Serial.print(n);
+
     n = abs(n - 512 - DC_OFFSET); // Center on zero
     n = (n <= NOISE) ? 0 : (n - NOISE);             // Remove noise/hum
     vol[volCount] = n;                      // Save sample for dynamic leveling
@@ -139,6 +180,10 @@ void detect_thunder() {
         total += vol[i];
     }
 
+    Serial.print(", ");
+    Serial.println(n);
+
+    /*
     // If you're having trouble getting the cloud to trigger, uncomment this block to output a ton of debug on current averages. 
     // Note that this WILL slow down the program and make it less sensitive due to lower sample rate.
     Serial.print("Samples: [");
@@ -159,6 +204,7 @@ void detect_thunder() {
 
     Serial.print("current:");
     Serial.println(n);
+    */
 
     average = (total/SAMPLES)+2;
     if (n>average) {
