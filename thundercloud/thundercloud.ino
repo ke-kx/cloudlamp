@@ -10,14 +10,14 @@ This paragraph must be included in any redistribution.
 #include "FastLED.h"
 
 // How many leds in your strip?
-#define NUM_LEDS 85
-#define DATA_PIN 6
+#define NUM_LEDS 0
+#define DATA_PIN 7
 
 
 // Mode enumeration - if you want to add additional party or colour modes, add them here; you'll need to map some IR codes to them later; 
 // and add the modes into the main switch loop
 enum Mode { CLOUD,ACID,OFF,ON,RED,GREEN,BLUE,FADE};
-Mode mode = CLOUD;  
+Mode mode = CLOUD;
 Mode lastMode = CLOUD;
 
 // Mic settings, shouldn't need to adjust these. 
@@ -25,13 +25,11 @@ Mode lastMode = CLOUD;
 #define DC_OFFSET  0  // DC offset in mic signal - if unusure, leave 0
 #define NOISE     10  // Noise/hum/interference in mic signal
 #define SAMPLES   10  // Length of buffer for dynamic level adjustment
-byte
-  volCount  = 0;      // Frame counter for storing past volume data
-int
-  vol[SAMPLES];       // Collection of prior volume samples
+byte volCount  = 0;      // Frame counter for storing past volume data
+int vol[SAMPLES];       // Collection of prior volume samples
 int      n, total = 30;
 float average = 0;
-  
+
 // used to make basic mood lamp colour fading feature
 int fade_h;
 int fade_direction = 1;
@@ -40,66 +38,61 @@ int fade_direction = 1;
 // Define the array of leds
 CRGB leds[NUM_LEDS];
 
+char input;
+
 void setup() { 
-  // this line sets the LED strip type - refer fastLED documeantion for more details https://github.com/FastLED/FastLED
-  FastLED.addLeds<WS2812B, DATA_PIN, GRB>(leds, NUM_LEDS);
-  // starts the audio samples array at volume 15. 
-  memset(vol, 15, sizeof(vol));
-  Serial.begin(115200);
-  Wire.begin(9);                // Start I2C Bus as a Slave (Device Number 9)
-  Wire.onReceive(receiveEvent); // register event
+    // this line sets the LED strip type - refer fastLED documeantion for more details https://github.com/FastLED/FastLED
+    FastLED.addLeds<WS2812B, DATA_PIN, GRB>(leds, NUM_LEDS);
+    // starts the audio samples array at volume 15. 
+    memset(vol, 15, sizeof(vol));
+    Serial.begin(115200);
+
+    Serial.begin(9600);
+    delay(2000);
+    Serial.println("Type something!");
 }
 
-
-
-void receiveEvent(int bytes) {
-  
-  // Here, we set the mode based on the IR signal received. Check the debug log when you press a button on your remote, and 
-  // add the hex code here (you need 0x prior to each command to indicate it's a hex value)
-  while(Wire.available())
-   { 
-      unsigned int received = Wire.read();
-      Serial.print("Receiving IR hex: ");
-      Serial.println(received,HEX);
-      lastMode = mode;
-      switch(received){
-        case 0x3F:
+void setMode(char received) {
+    switch(received){
+        case 'o':
           mode = ON; break;
-        case 0xBF:
+        case '0':
           mode = OFF; break;
-        case 0x2F:
+        case 'c':
           mode = CLOUD; break;
-        case 0xF:
+        case 'a':
           mode = ACID; break;
-        case 0x37:
+        case 'f':
           mode = FADE; break;
-        case 0x9F:
+        case 'b':
           mode = BLUE; break;
-        case 0x5F:
+        case 'g':
           mode = GREEN; break;
-        case 0xDF:
+        case 'r':
           mode = RED; break;
-        
-      }
-   }
-
+    }
 }
- 
+
 void loop() { 
-  
-  // Maps mode names to code functions. 
-  switch(mode){
-    case CLOUD: detect_thunder();reset();break;
-    case ACID: acid_cloud();reset();break;
-    case OFF:reset();break;
-    case ON: constant_lightning();reset();break;
-    case RED: single_colour(0);break;
-    case BLUE: single_colour(160);break;
-    case GREEN: single_colour(96);break;
-    case FADE: colour_fade();break;
-    default: detect_thunder(); reset();break; 
-  }
-  
+    if(Serial.available()){
+        input = Serial.read();
+        Serial.print("You typed: " );
+        Serial.println(input);
+        setMode(input);
+    }
+
+    // Maps mode names to code functions. 
+    switch(mode){
+        case CLOUD: detect_thunder(); reset(); break;
+        case ACID: acid_cloud(); reset(); break;
+        case OFF:reset(); break;
+        case ON: constant_lightning(); reset(); break;
+        case RED: single_colour(0); break;
+        case BLUE: single_colour(160); break;
+        case GREEN: single_colour(96); break;
+        case FADE: colour_fade(); break;
+        default: detect_thunder(); reset(); break;
+    }
 }
 
 // Makes all the LEDs a single colour, see https://raw.githubusercontent.com/FastLED/FastLED/gh-pages/images/HSV-rainbow-with-desc.jpg for H values
@@ -135,22 +128,19 @@ void colour_fade(){
 
 
 void detect_thunder() {
-  
   n   = analogRead(MIC_PIN);                        // Raw reading from mic 
   n   = abs(n - 512 - DC_OFFSET); // Center on zero
   n   = (n <= NOISE) ? 0 : (n - NOISE);             // Remove noise/hum
   vol[volCount] = n;                      // Save sample for dynamic leveling
   if(++volCount >= SAMPLES) volCount = 0; // Advance/rollover sample counter
- 
+
   total = 0;
   for(int i=0; i<SAMPLES; i++) {
     total += vol[i];
   }
-  
+
   // If you're having trouble getting the cloud to trigger, uncomment this block to output a ton of debug on current averages. 
   // Note that this WILL slow down the program and make it less sensitive due to lower sample rate.
-  
-  /*
   for(int t=0; t<SAMPLES; t++) {
     //initial data is zero. to avoid initial burst, we ignore zero and just add the current l
     Serial.print("Sample item ");
@@ -158,25 +148,23 @@ void detect_thunder() {
     Serial.print(":");
     Serial.println(vol[t]);
   }
+
   Serial.print("total");
   Serial.println(total);
   Serial.print("divided by sample size of ");
   Serial.println(SAMPLES);
-  
- 
+
   Serial.print("average:");
   Serial.println(average);
 
   Serial.print("current:");
   Serial.println(n);
-  */
-  
+
   average = (total/SAMPLES)+2;
   if(n>average){
     Serial.println("TRIGGERED");
     reset();
-     
-   
+
     //I've programmed 3 types of lightning. Each cycle, we pick a random one. 
     switch(random(1,3)){
        //switch(3){
@@ -320,4 +308,3 @@ void constant_lightning(){
   }  
 }
   
-
