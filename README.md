@@ -1,3 +1,7 @@
+
+Inspired by / Stolen from instructables.com/Sound-Reactive-Lightning-Cloud
+
+
 cloudlamp
 =========
 
